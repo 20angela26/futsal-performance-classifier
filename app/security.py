@@ -5,10 +5,10 @@ from app.config import settings
 
 security = HTTPBearer()
 
-# Cliente para validación de tokens y autenticación
+# Cliente para login y validación de tokens de sesión
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
 
-# Cliente exclusivo para operaciones administrativas en tablas (no se altera con get_user)
+# Cliente exclusivo para operaciones administrativas en tablas (no se altera con login ni get_user)
 supabase_admin: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
 
 def obtener_entrenador_actual(credentials: HTTPAuthorizationCredentials = Depends(security)):

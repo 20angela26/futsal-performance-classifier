@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
-from app.security import supabase
+from app.security import supabase, supabase_admin
 import bcrypt
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
@@ -10,7 +10,6 @@ router = APIRouter(prefix="/api/auth", tags=["Autenticación"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def obtener_hash_password(password: str) -> str:
-    # Convertir a bytes, generar salt y encriptar
     pwd_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
@@ -54,7 +53,7 @@ class RestablecerPasswordSchema(BaseModel):
 def registrar_entrenador(datos: RegistroSchema):
     try:
         # 1. Verificar si el email ya existe en la tabla de perfiles
-        existente = supabase.table("perfiles_entrenadores") \
+        existente = supabase_admin.table("perfiles_entrenadores") \
             .select("id") \
             .eq("email", datos.email) \
             .execute()
@@ -65,8 +64,8 @@ def registrar_entrenador(datos: RegistroSchema):
                 detail="El entrenador ya se encuentra registrado con este correo electrónico."
             )
 
-        # 2. Registrar credenciales directamente con Admin API (evita límites de correo)
-        res = supabase.auth.admin.create_user({
+        # 2. Crear usuario directamente confirmado en Auth (sin envío de correos)
+        res = supabase_admin.auth.admin.create_user({
             "email": datos.email,
             "password": datos.password,
             "email_confirm": True
@@ -77,22 +76,27 @@ def registrar_entrenador(datos: RegistroSchema):
         user_id = res.user.id
         hash_inicial = obtener_hash_password(datos.password)
 
-        # 3. Guardar perfil en perfiles_entrenadores
-        supabase.table("perfiles_entrenadores").insert({
-            "id": user_id,
-            "nombre_completo": datos.nombre_completo,
-            "email": datos.email,
-            "equipo": datos.equipo,
-            "rol": "entrenador",
-            "pregunta_seguridad": datos.pregunta_seguridad,
-            "respuesta_seguridad": datos.respuesta_seguridad.strip().lower()
-        }).execute()
+        try:
+            # 3. Guardar perfil en perfiles_entrenadores
+            supabase_admin.table("perfiles_entrenadores").insert({
+                "id": user_id,
+                "nombre_completo": datos.nombre_completo,
+                "email": datos.email,
+                "equipo": datos.equipo,
+                "rol": "entrenador",
+                "pregunta_seguridad": datos.pregunta_seguridad,
+                "respuesta_seguridad": datos.respuesta_seguridad.strip().lower()
+            }).execute()
 
-        # 4. Guardar hash inicial en historial_passwords
-        supabase.table("historial_passwords").insert({
-            "entrenador_id": user_id,
-            "password_hash": hash_inicial
-        }).execute()
+            # 4. Guardar hash inicial en historial_passwords
+            supabase_admin.table("historial_passwords").insert({
+                "entrenador_id": user_id,
+                "password_hash": hash_inicial
+            }).execute()
+        except Exception as db_error:
+            # Rollback: elimina el usuario de Auth si falla el guardado en base de datos
+            supabase_admin.auth.admin.delete_user(user_id)
+            raise db_error
 
         return {
             "message": "Entrenador registrado exitosamente.",
@@ -108,17 +112,6 @@ def registrar_entrenador(datos: RegistroSchema):
 @router.post("/login", summary="Login Entrenador")
 def login_entrenador(datos: LoginSchema):
     try:
-        # 1. Buscar al entrenador para asegurar que su correo esté confirmado en Auth
-        perfil = supabase.table("perfiles_entrenadores") \
-            .select("id") \
-            .eq("email", datos.email) \
-            .execute()
-
-        if perfil.data:
-            user_id = perfil.data[0]["id"]
-            supabase.auth.admin.update_user_by_id(user_id, {"email_confirm": True})
-
-        # 2. Iniciar sesión normalmente
         res = supabase.auth.sign_in_with_password({
             "email": datos.email,
             "password": datos.password
@@ -143,7 +136,7 @@ def login_entrenador(datos: LoginSchema):
 @router.post("/recuperar-pregunta", summary="Obtener pregunta de seguridad del entrenador")
 def recuperar_pregunta(datos: RecuperarPreguntaSchema):
     try:
-        perfil = supabase.table("perfiles_entrenadores") \
+        perfil = supabase_admin.table("perfiles_entrenadores") \
             .select("pregunta_seguridad") \
             .eq("email", datos.email) \
             .execute()
@@ -166,7 +159,7 @@ def recuperar_pregunta(datos: RecuperarPreguntaSchema):
 def restablecer_password(datos: RestablecerPasswordSchema):
     try:
         # 1. Buscar perfil y verificar respuesta de seguridad
-        perfil = supabase.table("perfiles_entrenadores") \
+        perfil = supabase_admin.table("perfiles_entrenadores") \
             .select("id, respuesta_seguridad") \
             .eq("email", datos.email) \
             .execute()
@@ -180,8 +173,8 @@ def restablecer_password(datos: RestablecerPasswordSchema):
 
         user_id = entrenador["id"]
 
-        # 2. Consultar todo el historial de contraseñas usadas por este entrenador
-        historial = supabase.table("historial_passwords") \
+        # 2. Consultar historial de contraseñas usadas por este entrenador
+        historial = supabase_admin.table("historial_passwords") \
             .select("password_hash") \
             .eq("entrenador_id", user_id) \
             .execute()
@@ -194,8 +187,8 @@ def restablecer_password(datos: RestablecerPasswordSchema):
                     detail="La nueva contraseña no puede ser igual a ninguna contraseña utilizada anteriormente."
                 )
 
-        # 4. Actualizar la contraseña real en Supabase Auth (requiere SUPABASE_SERVICE_KEY en .env)
-        supabase.auth.admin.update_user_by_id(
+        # 4. Actualizar la contraseña en Supabase Auth
+        supabase_admin.auth.admin.update_user_by_id(
             user_id,
             {
                 "password": datos.nueva_password,
@@ -203,9 +196,9 @@ def restablecer_password(datos: RestablecerPasswordSchema):
             }
         )
 
-        # 5. Guardar el nuevo hash en la tabla historial_passwords
+        # 5. Guardar el nuevo hash en historial_passwords
         nuevo_hash = obtener_hash_password(datos.nueva_password)
-        supabase.table("historial_passwords").insert({
+        supabase_admin.table("historial_passwords").insert({
             "entrenador_id": user_id,
             "password_hash": nuevo_hash
         }).execute()
