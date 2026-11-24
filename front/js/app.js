@@ -78,11 +78,13 @@ const App = {
     if (!page || !main) { location.hash = "#/panel"; return; }
     U.$$(".side nav a").forEach(a => a.classList.toggle("active", a.dataset.r === key));
     U.destroyCharts();
+    const rid = this._rid = (this._rid || 0) + 1;   // identifica esta navegación
     document.title = `${(this.ROUTES[key]?.label || "Jugador")} · FutsalLab`;
     try {
       await page.call(Pages, main, params);
     } catch (e) {
       console.error(e);
+      if (rid !== this._rid) return;   // el usuario ya cambió de página: ignora el error viejo
       main.innerHTML = `<div class="empty"><p>${U.esc(e.message || "Error al cargar el reporte")}</p><button class="btn primary" onclick="App.route()">Reintentar</button></div>`;
     }
     window.scrollTo(0, 0);

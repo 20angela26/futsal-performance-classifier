@@ -118,7 +118,9 @@ const Pages = {
       Pages._jrows = rows;
 
       const th = (k, label, cls = "") => `<th class="${cls} sortable ${st.sort === k ? "sorted" : ""}" data-s="${k}" aria-sort="${st.sort === k ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${label}<span class="arr">${st.sort === k ? (st.dir > 0 ? "▲" : "▼") : ""}</span></th>`;
-      U.$("#tbl", el).innerHTML = rows.length ? `
+      const tblBox = U.$("#tbl", el);
+      if (!tblBox) return;   // página ya cambiada
+      tblBox.innerHTML = rows.length ? `
       <table class="tbl"><thead><tr>
         ${th("jugador", "Jugador")}${th("masa", "Masa", "num")}${th("n", "Eval.", "num")}${th("perfil", "Perfil")}
         ${M.map(m => th(m.key, m.label, "num")).join("")}${th("prob", "P. explosivo")}</tr></thead>
@@ -248,6 +250,7 @@ const Pages = {
     el.innerHTML = pageHead("Reporte por perfil", "Evaluaciones agrupadas según el clúster predicho por el modelo",
       `<button class="btn ghost" id="b-csv">Exportar CSV</button><button class="btn ghost" id="b-print">Imprimir</button>`) + `<div id="cl-body"><div class="loading">Cargando…</div></div>`;
     const [c0, c1] = await Promise.all([Api.porCluster(0), Api.porCluster(1)]);
+    if (!U.$("#cl-body", el)) return;   // el usuario ya salió de esta página
     const sets = [c0, c1];
     const all = c0.concat(c1);
     if (!all.length) { U.$("#cl-body", el).innerHTML = empty("No hay evaluaciones registradas todavía."); return; }
@@ -451,8 +454,9 @@ const Pages = {
         try {
           const r = await Api.evaluar(fd);
           U.toast("Evaluación guardada", "ok");
-          await App.refresh();
-          Pages.showResult(U.$("#result", el), r.resultado);
+          await App.refresh(true);
+          const rb = U.$("#result", el);
+          if (rb) Pages.showResult(rb, r.resultado);
         } catch (e) { err(e.message); }
       });
     });
