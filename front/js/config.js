@@ -22,6 +22,6 @@ window.CONFIG = {
 
   CLUSTERS: {
     0: { name: "Explosivo",  long: "Mayor rendimiento explosivo, reactivo y de agilidad", cls: "c0" },
-    1: { name: "Posicional", long: "Menor rendimiento relativo en las capacidades evaluadas", cls: "c1" }
+    1: { name: "No explosivo", long: "Menor rendimiento relativo en las capacidades evaluadas", cls: "c1" }
   }
 };
