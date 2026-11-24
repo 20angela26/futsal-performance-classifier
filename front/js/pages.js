@@ -10,7 +10,7 @@ function empty(msg, cta = "") {
 }
 function probBar(p) {
   const e = (p ?? 0) * 100;
-  return `<div class="prob" title="Explosivo ${e.toFixed(1)}% · Posicional ${(100 - e).toFixed(1)}%">
+  return `<div class="prob" title="Explosivo ${e.toFixed(1)}% · No explosivo ${(100 - e).toFixed(1)}%">
     <i class="c0" style="width:${e}%"></i><i class="c1" style="width:${100 - e}%"></i></div>`;
 }
 const radarOpts = () => ({
@@ -50,7 +50,7 @@ const Pages = {
     <section class="grid-2">
       <article class="card"><h3>Distribución de perfiles</h3>
         <div class="chart-box short"><canvas id="ch-dist"></canvas></div>
-        <div class="legend-row"><span><i class="dot c0"></i>Explosivo · ${nExp}</span><span><i class="dot c1"></i>Posicional · ${nPos}</span></div>
+        <div class="legend-row"><span><i class="dot c0"></i>Explosivo · ${nExp}</span><span><i class="dot c1"></i>No explosivo · ${nPos}</span></div>
       </article>
       <article class="card"><h3>Perfil promedio por clúster</h3>
         <div class="chart-box short"><canvas id="ch-cl"></canvas></div>
@@ -75,7 +75,7 @@ const Pages = {
 
     U.chart(U.$("#ch-dist"), {
       type: "doughnut",
-      data: { labels: ["Explosivo", "Posicional"], datasets: [{ data: [nExp, nPos], backgroundColor: [U.color("c0"), U.color("c1")], borderWidth: 0 }] },
+      data: { labels: ["Explosivo", "No explosivo"], datasets: [{ data: [nExp, nPos], backgroundColor: [U.color("c0"), U.color("c1")], borderWidth: 0 }] },
       options: { responsive: true, maintainAspectRatio: false, cutout: "68%", plugins: { legend: { display: false } } }
     });
 
@@ -86,7 +86,7 @@ const Pages = {
       type: "radar",
       data: { labels: M.map(m => m.label), datasets: [
         { label: "Explosivo", data: M.map(m => U.norm(m, a0[m.key], rg)), borderColor: U.color("c0"), backgroundColor: U.hexA(U.color("c0"), .18), pointRadius: 3 },
-        { label: "Posicional", data: M.map(m => U.norm(m, a1[m.key], rg)), borderColor: U.color("c1"), backgroundColor: U.hexA(U.color("c1"), .18), pointRadius: 3 }
+        { label: "No explosivo", data: M.map(m => U.norm(m, a1[m.key], rg)), borderColor: U.color("c1"), backgroundColor: U.hexA(U.color("c1"), .18), pointRadius: 3 }
       ] },
       options: radarOpts()
     });
@@ -101,7 +101,7 @@ const Pages = {
       <div class="search"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
         <input id="q" type="search" placeholder="Buscar por código o nombre…" value="${U.esc(st.q)}" aria-label="Buscar jugador"></div>
       <div class="chips" role="group" aria-label="Filtrar por perfil">
-        ${[["all", "Todos"], ["0", "Explosivo"], ["1", "Posicional"]].map(([v, l]) => `<button class="chip ${st.cluster === v ? "on" : ""}" data-c="${v}">${l}</button>`).join("")}
+        ${[["all", "Todos"], ["0", "Explosivo"], ["1", "No explosivo"]].map(([v, l]) => `<button class="chip ${st.cluster === v ? "on" : ""}" data-c="${v}">${l}</button>`).join("")}
       </div>
     </div>
     <div class="card flush"><div class="tbl-wrap" id="tbl"></div></div>`;
@@ -154,9 +154,9 @@ const Pages = {
     U.$("#b-print", el).addEventListener("click", () => window.print());
     U.$("#b-csv", el).addEventListener("click", () => {
       U.csv("jugadores_futsal.csv",
-        ["Jugador", "Masa kg", "N evaluaciones", "Perfil", ...M.map(m => `${m.label} (${m.unit || "idx"})`), "P. explosivo", "P. posicional"],
+        ["Jugador", "Masa kg", "N evaluaciones", "Perfil", ...M.map(m => `${m.label} (${m.unit || "idx"})`), "P. explosivo", "P. no explosivo"],
         (Pages._jrows || []).map(({ j, e }) => [j.jugador, j.masa_kg, (j.evaluaciones || []).length, e ? CONFIG.CLUSTERS[e.cluster_predicho]?.name : "",
-          ...M.map(m => e ? e[m.key] : ""), e?.probabilidad_explosivo ?? "", e?.probabilidad_posicional ?? ""]));
+          ...M.map(m => e ? e[m.key] : ""), e?.probabilidad_explosivo ?? "", (e ? U.pNo(e) : "")]));
     });
 
     // Si hay búsqueda previa guardada, la reaplica
@@ -197,7 +197,7 @@ const Pages = {
       <div class="profile-prob">
         <div class="pp"><span>Explosivo</span><b>${U.pct(last.probabilidad_explosivo)}</b></div>
         ${probBar(last.probabilidad_explosivo)}
-        <div class="pp r"><span>Posicional</span><b>${U.pct(last.probabilidad_posicional)}</b></div>
+        <div class="pp r"><span>No explosivo</span><b>${U.pct(U.pNo(last))}</b></div>
       </div>
     </section>
 
@@ -241,8 +241,8 @@ const Pages = {
 
     U.$("#b-print", el).addEventListener("click", () => window.print());
     U.$("#b-csv", el).addEventListener("click", () => U.csv(`jugador_${j.jugador}.csv`,
-      ["Evaluación", "Fecha", "Perfil", ...M.map(m => m.label), "P. explosivo", "P. posicional"],
-      evs.map((e, i) => [i + 1, U.date(e.created_at) || "", CONFIG.CLUSTERS[e.cluster_predicho]?.name, ...M.map(m => e[m.key]), e.probabilidad_explosivo, e.probabilidad_posicional])));
+      ["Evaluación", "Fecha", "Perfil", ...M.map(m => m.label), "P. explosivo", "P. no explosivo"],
+      evs.map((e, i) => [i + 1, U.date(e.created_at) || "", CONFIG.CLUSTERS[e.cluster_predicho]?.name, ...M.map(m => e[m.key]), e.probabilidad_explosivo, U.pNo(e)])));
   },
 
   /* =================== POR CLÚSTER =================== */
@@ -267,7 +267,7 @@ const Pages = {
       <section class="grid-2">
         <article class="card"><h3>Perfil medio</h3><div class="chart-box"><canvas id="ch-cmp"></canvas></div>${radarNote}</article>
         <article class="card flush"><h3 class="pad">Promedios por variable</h3>
-          <table class="tbl compact"><thead><tr><th>Variable</th><th class="num">Explosivo</th><th class="num">Posicional</th><th class="num">Dif.</th></tr></thead><tbody>
+          <table class="tbl compact"><thead><tr><th>Variable</th><th class="num">Explosivo</th><th class="num">No explosivo</th><th class="num">Dif.</th></tr></thead><tbody>
           ${M.map(m => { const a = avgs[0][m.key], b = avgs[1][m.key]; const d = a != null && b != null && b !== 0 ? (a - b) / b : null;
             return `<tr><td><b>${m.label}</b> <span class="unit">${m.unit}</span></td><td class="num">${U.num(a, m.dec)}</td><td class="num">${U.num(b, m.dec)}</td><td class="num ${d == null ? "" : ((d > 0) === (m.better === "high") ? "pos" : "neg")}">${d == null ? "—" : (d > 0 ? "+" : "") + (d * 100).toFixed(0) + "%"}</td></tr>`; }).join("")}
           </tbody></table></article>
@@ -287,8 +287,8 @@ const Pages = {
     });
     U.$("#b-print", el).addEventListener("click", () => window.print());
     U.$("#b-csv", el).addEventListener("click", () => U.csv("reporte_por_perfil.csv",
-      ["Perfil", "Jugador", "Masa kg", ...M.map(m => m.label), "P. explosivo", "P. posicional"],
-      all.map(e => [CONFIG.CLUSTERS[e.cluster_predicho]?.name, e.jugadores?.jugador, e.jugadores?.masa_kg, ...M.map(m => e[m.key]), e.probabilidad_explosivo, e.probabilidad_posicional])));
+      ["Perfil", "Jugador", "Masa kg", ...M.map(m => m.label), "P. explosivo", "P. no explosivo"],
+      all.map(e => [CONFIG.CLUSTERS[e.cluster_predicho]?.name, e.jugadores?.jugador, e.jugadores?.masa_kg, ...M.map(m => e[m.key]), e.probabilidad_explosivo, U.pNo(e)])));
   },
 
   /* =================== COMPARAR =================== */
@@ -466,8 +466,8 @@ const Pages = {
     const c = r.cluster_predicho;
     box.innerHTML = `<h3>Resultado</h3>
       <div class="res-head">${U.badge(c)}<h2>${U.esc(r.jugador)}</h2></div>
-      <p class="muted">${U.esc(r.perfil_fisico)}</p>
-      <div class="profile-prob stack"><div class="pp"><span>Explosivo</span><b>${U.pct(r.probabilidad_explosivo)}</b></div>${probBar(r.probabilidad_explosivo)}<div class="pp r"><span>Posicional</span><b>${U.pct(r.probabilidad_posicional)}</b></div></div>
+      <p class="muted">${U.esc(CONFIG.CLUSTERS[r.cluster_predicho]?.long || r.perfil_fisico)}</p>
+      <div class="profile-prob stack"><div class="pp"><span>Explosivo</span><b>${U.pct(r.probabilidad_explosivo)}</b></div>${probBar(r.probabilidad_explosivo)}<div class="pp r"><span>No explosivo</span><b>${U.pct(U.pNo(r))}</b></div></div>
       <dl class="res-list">${M.map(m => `<div><dt>${m.label}</dt><dd>${metricCell(m, r[m.key])}</dd></div>`).join("")}</dl>
       <a class="btn primary block" href="#/jugadores">Ver en reportes</a>`;
   }

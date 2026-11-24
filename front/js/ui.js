@@ -10,6 +10,8 @@ const U = {
     if (v === null || v === undefined || isNaN(v)) return "—";
     return Number(v).toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec });
   },
+  /* probabilidad de 'no explosivo': el backend nuevo usa probabilidad_no_explosivo; el anterior, probabilidad_posicional */
+  pNo(e) { return e ? (e.probabilidad_no_explosivo ?? e.probabilidad_posicional ?? (e.probabilidad_explosivo != null ? 1 - e.probabilidad_explosivo : null)) : null; },
   pct(v) { return v == null ? "—" : (v * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + "%"; },
   date(iso) {
     if (!iso) return null;

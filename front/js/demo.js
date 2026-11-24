@@ -23,7 +23,7 @@
       tiempo_reaccion_total_ms: react, rsi_mod_promedio: rsiMod, contacto_dj_promedio: contacto,
       cluster_predicho: cluster,
       perfil_fisico: window.CONFIG.CLUSTERS[cluster].long,
-      probabilidad_explosivo: pExp, probabilidad_posicional: round(1 - pExp, 4),
+      probabilidad_explosivo: pExp, probabilidad_no_explosivo: round(1 - pExp, 4),
       created_at: d.toISOString()
     };
   }

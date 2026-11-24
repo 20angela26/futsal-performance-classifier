@@ -154,5 +154,5 @@ def procesar_jugador_completo(
         "cluster_predicho": pred,
         "perfil_fisico": PERFILES.get(pred, "Por interpretar"),
         "probabilidad_explosivo": round(float(probas[0]), 4),
-        "probabilidad_posicional": round(float(probas[1]), 4)
+        "probabilidad_no_explosivo": round(float(probas[1]), 4)
     }
