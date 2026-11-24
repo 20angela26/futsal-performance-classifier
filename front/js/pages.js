@@ -118,7 +118,9 @@ const Pages = {
       Pages._jrows = rows;
 
       const th = (k, label, cls = "") => `<th class="${cls} sortable ${st.sort === k ? "sorted" : ""}" data-s="${k}" aria-sort="${st.sort === k ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${label}<span class="arr">${st.sort === k ? (st.dir > 0 ? "▲" : "▼") : ""}</span></th>`;
-      U.$("#tbl", el).innerHTML = rows.length ? `
+      const tblBox = U.$("#tbl", el);
+      if (!tblBox) return;   // página ya cambiada
+      tblBox.innerHTML = rows.length ? `
       <table class="tbl"><thead><tr>
         ${th("jugador", "Jugador")}${th("masa", "Masa", "num")}${th("n", "Eval.", "num")}${th("perfil", "Perfil")}
         ${M.map(m => th(m.key, m.label, "num")).join("")}${th("prob", "P. explosivo")}</tr></thead>
@@ -248,6 +250,7 @@ const Pages = {
     el.innerHTML = pageHead("Reporte por perfil", "Evaluaciones agrupadas según el clúster predicho por el modelo",
       `<button class="btn ghost" id="b-csv">Exportar CSV</button><button class="btn ghost" id="b-print">Imprimir</button>`) + `<div id="cl-body"><div class="loading">Cargando…</div></div>`;
     const [c0, c1] = await Promise.all([Api.porCluster(0), Api.porCluster(1)]);
+    if (!U.$("#cl-body", el)) return;   // el usuario ya salió de esta página
     const sets = [c0, c1];
     const all = c0.concat(c1);
     if (!all.length) { U.$("#cl-body", el).innerHTML = empty("No hay evaluaciones registradas todavía."); return; }
@@ -355,6 +358,19 @@ const Pages = {
           <p><code>masa_kg</code> · <code>jump_height_impdis_cm_cmj</code> · <code>rsi_mod_m/s_cmj</code> · <code>contact_time_s_dj</code> · <code>rsi_ratio_dj</code> · <code>jump_height_impdis_cm_sj</code></p></details>
         <div class="field"><label for="jug">Código del jugador <small>(opcional, usa el del archivo si se deja vacío)</small></label><input id="jug" name="jugador" placeholder="ej. FSU1_2025_28"></div>
         <h3>2 · Hits de reacción (ms)</h3>
+        <div class="seg no-print" role="tablist" aria-label="Forma de ingresar los hits">
+          <button type="button" class="on" data-mode="manual" role="tab">Digitar manualmente</button>
+          <button type="button" data-mode="file" role="tab">Subir archivo</button>
+        </div>
+        <div id="hits-file" hidden>
+          <label class="drop small" id="drop2" for="hfile">
+            <input type="file" id="hfile" accept=".csv,.txt,.xlsx,.xls" hidden>
+            <b id="hname">Arrastra el archivo de hits (.csv / .xlsx) o haz clic</b>
+            <span>Se leen los 9 valores y se rellenan abajo para que los revises</span>
+          </label>
+          <p class="note">Formato: 3 filas (intentos) × 3 columnas (hits), o 9 valores en cualquier orden. Puede traer encabezado y/o una primera columna con el nombre del intento.
+            <a href="#" id="tpl">Descargar plantilla</a></p>
+        </div>
         ${hits}
         <div class="err" id="err" role="alert"></div>
         <button class="btn primary" type="submit">Evaluar y guardar</button>
@@ -368,6 +384,58 @@ const Pages = {
     ["dragover", "dragenter"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
     ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
     drop.addEventListener("drop", e => { if (e.dataTransfer.files[0]) { file.files = e.dataTransfer.files; setName(); } });
+
+    /* ---- hits: manual o desde archivo ---- */
+    const showMode = m => {
+      U.$$(".seg button", el).forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+      U.$("#hits-file", el).hidden = m !== "file";
+    };
+    U.$$(".seg button", el).forEach(b => b.addEventListener("click", () => showMode(b.dataset.mode)));
+
+    const parseHits = async f => {
+      let rows;
+      if (/\.(xlsx|xls)$/i.test(f.name)) {
+        const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+      } else {
+        const txt = (await f.text()).replace(/^﻿/, "");
+        const sep = txt.includes(";") ? ";" : txt.includes("\t") ? "\t" : ",";
+        // si el separador es ";" las comas son decimales; si es "," los decimales deben venir con punto
+        rows = txt.split(/\r?\n/).filter(l => l.trim()).map(l => l.split(sep));
+      }
+      const toNum = c => {
+        if (typeof c === "number") return c;
+        const s = String(c ?? "").trim().replace(",", ".");
+        return s !== "" && /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : null;
+      };
+      let nums = rows.map(r => r.map(toNum).filter(v => v !== null)).filter(r => r.length);
+      // columna índice 1,2,3 al inicio de cada fila (3 filas x 4 números)
+      if (nums.length === 3 && nums.every((r, i) => r.length === 4 && r[0] === i + 1)) nums = nums.map(r => r.slice(1));
+      const flat = nums.flat();
+      if (flat.length !== 9) throw new Error(`Se esperaban 9 valores numéricos y se encontraron ${flat.length}.`);
+      if (flat.some(v => v <= 0)) throw new Error("Todos los hits deben ser mayores que cero (ms).");
+      return flat;
+    };
+    const loadHits = async f => {
+      if (!f) return;
+      try {
+        const v = await parseHits(f);
+        v.forEach((x, k) => { U.$(`#i${Math.floor(k / 3) + 1}h${(k % 3) + 1}`, el).value = x; });
+        U.$("#hname", el).textContent = f.name;
+        U.toast("9 hits cargados. Revísalos antes de guardar.", "ok");
+        showMode("manual"); U.$("#err", el).textContent = "";
+      } catch (e) { U.toast(e.message, "error", 6000); }
+    };
+    const hf = U.$("#hfile", el), d2 = U.$("#drop2", el);
+    hf.addEventListener("change", () => { loadHits(hf.files[0]); hf.value = ""; });
+    ["dragover", "dragenter"].forEach(t => d2.addEventListener(t, e => { e.preventDefault(); d2.classList.add("over"); }));
+    ["dragleave", "drop"].forEach(t => d2.addEventListener(t, e => { e.preventDefault(); d2.classList.remove("over"); }));
+    d2.addEventListener("drop", e => loadHits(e.dataTransfer.files[0]));
+    U.$("#tpl", el).addEventListener("click", e => {
+      e.preventDefault();
+      U.csv("plantilla_hits.csv", ["Intento", "Hit 1 (ms)", "Hit 2 (ms)", "Hit 3 (ms)"],
+        [["Intento 1", 420, 435, 410], ["Intento 2", 428, 415, 440], ["Intento 3", 432, 421, 418]]);
+    });
 
     const form = U.$("#f-eval", el), err = m => U.$("#err", el).textContent = m || "";
     form.addEventListener("submit", async ev => {
@@ -386,8 +454,9 @@ const Pages = {
         try {
           const r = await Api.evaluar(fd);
           U.toast("Evaluación guardada", "ok");
-          await App.refresh();
-          Pages.showResult(U.$("#result", el), r.resultado);
+          await App.refresh(true);
+          const rb = U.$("#result", el);
+          if (rb) Pages.showResult(rb, r.resultado);
         } catch (e) { err(e.message); }
       });
     });

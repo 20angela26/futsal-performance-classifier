@@ -70,7 +70,7 @@ async def evaluar_jugador_en_paquete(
             "cluster_predicho": resultado["cluster_predicho"],
             "perfil_fisico": resultado["perfil_fisico"],
             "probabilidad_explosivo": resultado["probabilidad_explosivo"],
-            "probabilidad_posicional": resultado["probabilidad_posicional"]
+            "probabilidad_no_explosivo": resultado["probabilidad_no_explosivo"]
         }
 
         supabase_admin.table("evaluaciones").insert(eval_data).execute()
