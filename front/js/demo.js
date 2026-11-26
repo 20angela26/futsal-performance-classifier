@@ -10,10 +10,10 @@
     const k = baseExplosive + step * 0.04 + between(-0.05, 0.05);   // 0..1
     const cmj = round(26 + k * 14 + between(-1, 1), 4);
     const sj = round(cmj - between(1, 3), 4);
-    const rsiDj = round(0.9 + k * 1.1 + between(-0.08, 0.08), 4);
-    const rsiMod = round(0.35 + k * 0.35 + between(-0.03, 0.03), 4);
-    const contacto = round(0.26 - k * 0.09 + between(-0.01, 0.01), 4);
-    const react = round(560 - k * 150 + between(-18, 18), 4);
+    const rsiDj = round(0.6 + k * 0.4 + between(-0.04, 0.04), 4);
+    const rsiMod = round(0.25 + k * 0.27 + between(-0.02, 0.02), 4);
+    const contacto = round(1.38 + k * 0.25 + between(-0.05, 0.05), 4);
+    const react = round(2.45 - k * 0.65 + between(-0.05, 0.05), 4);
     const pExp = Math.min(0.99, Math.max(0.01, round(1 / (1 + Math.exp(-(k - 0.5) * 9)), 4)));
     const cluster = pExp >= 0.5 ? 0 : 1;
     const d = new Date(2026, 8 + Math.floor(step / 2), 3 + step * 9);
