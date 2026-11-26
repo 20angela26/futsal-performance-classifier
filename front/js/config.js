@@ -6,8 +6,6 @@ window.CONFIG = {
   API_BASE: "http://localhost:8000",
 
   // Prefijos tal como están definidos en el backend.
-  // OJO: en evaluaciones.py el prefijo está escrito "/api/evalucacionnes" (con typo).
-  // Si lo corriges en el backend, cambia también esta línea.
   EVAL_PREFIX: "/api/evalucacionnes",
 
   // Metadatos de las 6 variables que usa el modelo
