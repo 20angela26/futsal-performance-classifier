@@ -5,9 +5,10 @@ Front estático (HTML + CSS + JS, sin build) para la API `futsal-performance-cla
 ## Cómo correrlo
 1. Levanta el backend:  `uvicorn main:app --reload`  (queda en http://localhost:8000)
 2. Sirve esta carpeta:  `python -m http.server 5500`  y abre http://localhost:5500
-   (también funciona abriendo `index.html` directo).
-3. Si tu API está en otra URL: cámbiala en `js/config.js` (`API_BASE`) o en el login → "Servidor".
-4. Botón **"Probar con datos de ejemplo"** para ver todo sin backend.
+   (también funciona abriendo `index.html` directo o usando `python -m http.server 5500 -d front` cuando el front está en una carpeta separada ).
+   
+4. Si tu API está en otra URL: cámbiala en `js/config.js` (`API_BASE`) o en el login → "Servidor".
+5. Botón **"Probar con datos de ejemplo"** para ver todo sin backend.
 
 CORS ya está abierto (`allow_origins=["*"]`) en `main.py`.
 

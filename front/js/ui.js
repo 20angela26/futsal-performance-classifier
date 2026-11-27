@@ -8,8 +8,10 @@ const U = {
 
   num(v, dec = 2) {
     if (v === null || v === undefined || isNaN(v)) return "—";
-    return Number(v).toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    return Number(v).toLocaleString("es-CO", { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: dec > 0 });
   },
+  /* probabilidad de 'no explosivo': el backend nuevo usa probabilidad_no_explosivo; el anterior, probabilidad_posicional */
+  pNo(e) { return e ? (e.probabilidad_no_explosivo ?? e.probabilidad_posicional ?? (e.probabilidad_explosivo != null ? 1 - e.probabilidad_explosivo : null)) : null; },
   pct(v) { return v == null ? "—" : (v * 100).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + "%"; },
   date(iso) {
     if (!iso) return null;
@@ -49,12 +51,16 @@ const U = {
     });
     return r;
   },
+  /* Normaliza a 0-100. Usa el rango de referencia del entrenamiento (m.ref) para que el gráfico no cambie
+     según cuántos jugadores haya cargados; si no existe, usa el rango observado. Invierte las "menor es mejor". */
   norm(m, value, ranges) {
-    const { min, max } = ranges[m.key] || {};
-    if (value == null || max === undefined || !isFinite(min) || max === min) return 50;
-    let p = (value - min) / (max - min) * 100;
+    if (value == null || isNaN(value)) return 50;
+    const [min, max] = m.ref || [(ranges[m.key] || {}).min, (ranges[m.key] || {}).max];
+    if (max === undefined || !isFinite(min) || max === min) return 50;
+    let p = Math.min(100, Math.max(0, (value - min) / (max - min) * 100));
     return m.better === "low" ? 100 - p : p;
   },
+
   metricAvg(evals) {
     const o = {};
     CONFIG.METRICS.forEach(m => o[m.key] = U.mean(evals.map(e => e[m.key])));

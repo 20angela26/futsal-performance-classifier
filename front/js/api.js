@@ -96,7 +96,7 @@ const Api = {
       if (!j) { j = { id: 900 + DEMO.jugadores.length, entrenador_id: "demo", jugador: code, masa_kg: 72, evaluaciones: [] }; DEMO.jugadores.push(j); }
       const hits = ["1","2","3"].flatMap(i => ["1","2","3"].map(h => Number(formData.get(`intento${i}_hit${h}`))));
       const react = hits.reduce((a, b) => a + b, 0) / 9;
-      const k = Math.min(1, Math.max(0, (560 - react) / 150));
+      const k = Math.min(1, Math.max(0, (2.45 - react) / 0.65));
       const ev = DEMO.makeEval(DEMO.nextEvalId(), j.id, k, 0);
       ev.tiempo_reaccion_total_ms = Number(react.toFixed(4));
       ev.created_at = new Date().toISOString();
